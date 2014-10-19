@@ -1,0 +1,27 @@
+HOLAZA   SUBENTRY BASES=(3)
+         OPEN     (ARCH,(INPUT))
+LEER     GET      ARCH,WORD
+         WTO      MF=(E,WTO1)
+         B        LEER
+EOF      CLOSE    ARCH
+         SUBEXIT
+
+* WTOR     'Dame el nombre del archivazo',ARCHIVA,,WAITECB*
+* WAIT     ECB=WAITECB*
+* WTO      MF=(E,WTO2)*
+* DCB   DSNAME=NOMARCH,LRECL=8,RECFM=FT,MACRF=GM,EODAD=FIN *
+
+ARCH     DCB     DSNAME=ARCHIVO,LRECL=8,RECFM=FT,MACRF=GM,EODAD=EOF
+ARCHIVO  DC      C'saraza',X'00'
+
+* WAITECB  DC      F'0'
+* CONT     DS      CL8
+WTO1     DC      H'12'
+         DC      H'0'
+WORD     DS      CL8' '
+* ESPACIOS DC      8C' '
+* WTO2     DC      H'24'
+*          DC      H'0'
+* ARCHIVA  DS      CL20
+
+*        END

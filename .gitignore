@@ -1,0 +1,11 @@
+*.sublime-*
+*.LOG
+*.LST
+*.OBJ
+*.PR
+*.ERR
+*.PRN
+*.390
+*.o
+*.obj
+*.out

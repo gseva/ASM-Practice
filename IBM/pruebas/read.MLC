@@ -1,0 +1,26 @@
+VBOCTXRD SUBENTRY BASES=(3)
+         OPEN     (MYFILE,(INPUT)) * ABRO ARCHIVAZO
+
+READ     DS       0H
+         MVC      SCREEN,SPACES    * BLANQUEO CAMPO DE SALIDA
+         GET      MYFILE,MYFLRCD   * LEO REGISTRO
+         MVC      SCREEN,MYFLTX1   * MUEVO LA LINEA A LA SALIDA
+         WTO      MF=(E,WTOBLOCK)  * MUESTRO POR PANTALLA
+         B        READ             * VUELVO A LEER
+
+EOF      DS       0H
+         CLOSE    MYFILE
+
+         SUBEXIT
+
+MYFLRCD  DS       0CL80
+MYFLTX1  DS       CL80
+WTOBLOCK DC       H'84'
+         DC       H'0'
+SCREEN   DS       CL80
+SPACES   DC       CL80' '
+
+MYFILE   DCB      DSNAME=FILENAME,LRECL=80,RECFM=FT,MACRF=GM,EODAD=EOF
+FILENAME DC       C'readfile.MLC',X'00'
+
+         END

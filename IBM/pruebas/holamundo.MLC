@@ -1,0 +1,14 @@
+HOLAZA   SUBENTRY BASES=(3)
+         WTOR     'Dame el nombre migo',NOM,,WAITECB
+         WAIT     ECB=WAITECB
+         WTO      MF=(E,HOLANOM-4)
+         SUBEXIT
+
+WAITECB  DC      F'0'
+         DC      H'24'
+         DC      H'0'
+HOLANOM  DC      0CL20
+HOLA     DC      CL5'hola'
+NOM      DS      CL15
+
+         END
