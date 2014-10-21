@@ -14,6 +14,13 @@
 *                                                                     *
 *   REGISTROS GENERALES                                               *
 *        REG 3 = REGISTRO BASE                                        *
+*        REG 4 = REGISTRO BASE                                        *
+*        REG 5 = REGISTRO BASE                                        *
+*        REG 6 = REGISTRO BASE                                        *
+*                                                                     *
+*        REG 7 = Indice en memoria                                    *
+*        REG 8 = Contador en loops                                    *
+*        REG 9 = Indice en memoria                                    *
 *                                                                     *
 *   PROGRAMAS LLAMADOS                                                *
 *                                                                     *
@@ -21,45 +28,47 @@
 *                                                                     *
 ***********************************************************************
 
-TSOEDIT  SUBENTRY BASES=(3)
-
-         OPEN     (ARCHIN,(INPUT))
-         LA       4,0
-LEER     GET      ARCHIN,LINEA
-         MVC      TEXTOIN(80,4),LINEA
-         A        4,=F'80'
-         B        LEER
-
-ENTRADA  WTOR     'Comandos: C/CHANGE, N/NEXT, Q',COMANDO,,WAITECB
+TSOEDIT  SUBENTRY BASES=(3,4,5,6)
+         BAL      12,LEERARCH
+         BAL      12,MOSTRAR
+ENTRADA  MVC      COMANDO(1),=C' '   * Limpio el comando
+         MVC      COMANDO+1(55),COMANDO
+         WTOR     'Comandos: C/CHANGE, N/NEXT, Q',COMANDO,,WAITECB
          WAIT     ECB=WAITECB
          BAL      12,PARSEAR
-         CLC      ESVALIDO,C'N'
+         CLC      ESVALIDO,=C'N'
          BE       ERROR
          BAL      12,EJECUTAR
          B        ENTRADA
 
-EJECUTAR MVC      SALIDA,ESPACIOS
-         MVC      SALIDA,COMANDO
-         WTO      MF=(E,WTOBLOCK)
-
-ERROR    MVC      SALIDA,ESPACIOS
-         MVC      SALIDA,MSGINVAL
-         WTO      MF=(E,WTOBLOCK)
+ERROR    MVC      LINEA,MSGINVAL
+         BAL      13,WTOROT
          B        ENTRADA
 
-SALIR    MVC      SALIDA,MSGSALID
-         WTO      MF=(E,WTOBLOCK)
+SALIR    MVC      LINEA,MSGSALID
+         BAL      13,WTOROT
 	      SUBEXIT
 
+
+* Rutina de lectura del archivo inicial *
+LEERARCH OPEN     (ARCHIN,(INPUT))
+         LA       7,TEXTOIN
+LEER     GET      ARCHIN,LINEA
+         MVC      0(80,7),LINEA
+         LA       7,80(7)
+         B        LEER
+EOF      MVC      0(1,7),=X'00'
+         CLOSE    ARCHIN
+         BR       12
 
 * Rutina de validacion y parseo del comando *
 PARSEAR  CLI      INICIAL,C'Q'
          BE       SALIR
-         CLC      COMANDO,=C'C '
+         CLC      COMANDO(2),=C'C '
          BE       PARSECNG
          CLC      COMANDO(6),=C'CHANGE '
          BNE      VALN
-         MVC      COMANDO+1(55),COMANDO+5  * CHANGE '..' -> C '..'
+         MVC      COMANDO+1(50),COMANDO+6  * CHANGE '..' -> C '..'
          B        PARSECNG
 VALN     CLI      INICIAL,C'N'
          BE       PARSENXT
@@ -71,19 +80,98 @@ VALIDO   MVI      ESVALIDO,C'S'
          BR       12
 
 PARSENXT CLI      PARSEADO,C'S'
-         BE       INVAL
+         BNE      INVAL
          B        VALIDO
 
-PARSECNG B        VALIDO
+* Subrutina que parsea el comando CHANGE, guarda las palabras pasadas *
+* en rotulos ANTES y DESPUES. Checkea el formato. Acepta un maximo de *
+* 20 caracteres por cada parametro. *
+PARSECNG CLI      PARSEADO,C'S'
+         BE       INVAL
+         CLC      COMANDO+1(2),=X'407D'  * X'407D' == C' \''
+         BNE      INVAL
+         LA       8,20
+         LA       9,ANTES
+         LA       7,COMANDO+3
+LOOPANTS CLC      0(1,7),=X'7D'
+         BE       FINANTS
+         MVC      0(1,9),0(7)
+         LA       7,1(7)
+         LA       9,1(9)
+         BCT      8,LOOPANTS
+         B        INVAL
+FINANTS  MVC      0(1,9),=X'00'
+         CLC      1(2,7),=X'407D'
+         BNE      INVAL
+         LA       7,3(7)
+         LA       8,20
+         LA       9,DESPUES
+LOOPDSPS CLC      0(1,7),=X'7D'
+         BE       FINDSPS
+         MVC      0(1,9),0(7)
+         LA       7,1(7)
+         LA       9,1(9)
+         BCT      8,LOOPDSPS
+         B        INVAL
+FINDSPS  MVC      0(1,9),=X'00'
+         MVI      PARSEADO,C'S'
+         MVC      LINEA,ANTES
+         BAL      13,WTOROT
+         BAL      13,AMAYUS
+         MVC      LINEA,DESPUES
+         BAL      13,WTOROT
+         B        VALIDO
 
 * Rutina que muestra el texto *
-MOSTRAR  WTO      MF=(E,WTOBLOCK)
+MOSTRAR  LA       7,TEXTOIN
+MOSTLOOP MVC      LINEA(1),=C' '
+         MVC      LINEA+1(79),LINEA
+         LA       9,LINEA
+         LA       8,80
+MOSTLNEA MVC      0(1,9),0(7)
+         CLC      0(1,7),=X'00'
+         BE       MOSTSAL
+         LA       7,1(7)
+         LA       9,1(9)
+         BCT      8,MOSTLNEA
+         BAL      13,WTOROT
+         B        MOSTLOOP
+MOSTSAL  BAL      13,WTOROT
          BR       12
+
+* Rutina que convierte DESPUES a mayuscula *
+AMAYUS   LA       7,DESPUES
+         LA       8,20
+AMAYLOOP CLI      0(7),X'81'
+         BL       AMAYSGTE
+         CLI      0(7),X'A9'
+         BH       AMAYSGTE
+         LA       10,0
+         IC       10,0(7)
+         A        10,=F'64'
+         STC      10,0(7)
+AMAYSGTE LA       7,1(7)
+         BCT      8,AMAYLOOP
+         BR       13
+
+
+* Rutina que ejecuta el comando *
+EJECUTAR LA       7,TEXTOIN
+         LA       9,DESPUES
+
+         BR       12
+
+
+* Rutina que muestra una linea en pantalla *
+WTOROT   MVC      SALIDA,ESPACIOS
+         MVC      SALIDA,LINEA
+         WTO      MF=(E,WTOBLOCK)
+         BR       13
 
 
 
 * Declaracion de variables *
-COMANDO  DS       0CL60   * Comando hasta 60 caracteres
+COMANDO  DS       0CL56   * Comando hasta 56 caracteres
 INICIAL  DS       1C
 RESTO    DS       59C
 
@@ -98,19 +186,18 @@ MSGSALID DC       C'Muchas gracias, vuelva pronto',X'00'
 TEXTOIN  DS       60CL80
 TEXTOOUT DS       60CL80
 
-CANTCAR  DS       B
+ANTES    DS       20C
+DESPUES  DS       20C
+
+CHAR     DS       C
 
 * Archivo de entrada *
-ARCHIN   DCB      DSNAME=ARCHIVO,
-                  LRECL=80,
-                  RECFM=FT,
-                  MACRF=GM,
-                  EODAD=ENTRADA
-ARCHIVO  DC       C'saraza',x'00'
+ARCHIN   DCB      DSNAME=ARCHIVO,LRECL=80,RECFM=FT,MACRF=GM,EODAD=EOF
+ARCHIVO  DC       C'saraza',X'00'
 
 WAITECB  DS       F
-WTOBLOCK DC       H'4804'
+WTOBLOCK DC       H'84'
          DC       H'0'
-TEXTOAUX DS       60CL80
+SALIDA   DS       CL80
 
 	      END

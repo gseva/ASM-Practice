@@ -20,7 +20,11 @@ WTOBLOCK DC       H'84'
 SCREEN   DS       CL80
 SPACES   DC       CL80' '
 
-MYFILE   DCB      DSNAME=FILENAME,LRECL=80,RECFM=FT,MACRF=GM,EODAD=EOF
+MYFILE   DCB      DSNAME=FILENAME,
+               LRECL=80,
+               RECFM=FT,
+               MACRF=GM,
+               EODAD=EOF
 FILENAME DC       C'readfile.MLC',X'00'
 
          END
