@@ -16,11 +16,13 @@
 *        REG 3 = REGISTRO BASE                                        *
 *        REG 4 = REGISTRO BASE                                        *
 *        REG 5 = REGISTRO BASE                                        *
-*        REG 6 = REGISTRO BASE                                        *
 *                                                                     *
 *        REG 7 = Indice en memoria                                    *
 *        REG 8 = Contador en loops                                    *
 *        REG 9 = Indice en memoria                                    *
+*                                                                     *
+*        REG 11 = Registro para llamadas a rutinas                    *
+*        REG 12 = Registro para llamadas a rutinas                    *
 *                                                                     *
 *   PROGRAMAS LLAMADOS                                                *
 *                                                                     *
@@ -28,9 +30,8 @@
 *                                                                     *
 ***********************************************************************
 
-TSOEDIT  SUBENTRY BASES=(3,4,5,6)
+TSOEDIT  SUBENTRY BASES=(3,4,5)
          BAL      12,LEERARCH
-         BAL      12,MOSTRAR
 ENTRADA  MVC      COMANDO(1),=C' '   * Limpio el comando
          MVC      COMANDO+1(55),COMANDO
          WTOR     'Comandos: C/CHANGE, N/NEXT, Q',COMANDO,,WAITECB
@@ -38,15 +39,16 @@ ENTRADA  MVC      COMANDO(1),=C' '   * Limpio el comando
          BAL      12,PARSEAR
          CLC      ESVALIDO,=C'N'
          BE       ERROR
+         BAL      12,AMAYUS
          BAL      12,EJECUTAR
          B        ENTRADA
 
 ERROR    MVC      LINEA,MSGINVAL
-         BAL      13,WTOROT
+         BAL      11,IMPRIMIR
          B        ENTRADA
 
 SALIR    MVC      LINEA,MSGSALID
-         BAL      13,WTOROT
+         BAL      11,IMPRIMIR
 	      SUBEXIT
 
 
@@ -86,9 +88,7 @@ PARSENXT CLI      PARSEADO,C'S'
 * Subrutina que parsea el comando CHANGE, guarda las palabras pasadas *
 * en rotulos ANTES y DESPUES. Checkea el formato. Acepta un maximo de *
 * 20 caracteres por cada parametro. *
-PARSECNG CLI      PARSEADO,C'S'
-         BE       INVAL
-         CLC      COMANDO+1(2),=X'407D'  * X'407D' == C' \''
+PARSECNG CLC      COMANDO+1(2),=X'407D'  * X'407D' == C' \''
          BNE      INVAL
          LA       8,20
          LA       9,ANTES
@@ -100,44 +100,28 @@ LOOPANTS CLC      0(1,7),=X'7D'
          LA       9,1(9)
          BCT      8,LOOPANTS
          B        INVAL
-FINANTS  MVC      0(1,9),=X'00'
+FINANTS  MVI      0(9),X'00'
          CLC      1(2,7),=X'407D'
          BNE      INVAL
          LA       7,3(7)
          LA       8,20
          LA       9,DESPUES
-LOOPDSPS CLC      0(1,7),=X'7D'
+LOOPDSPS CLI      0(7),X'7D'
          BE       FINDSPS
          MVC      0(1,9),0(7)
          LA       7,1(7)
          LA       9,1(9)
          BCT      8,LOOPDSPS
          B        INVAL
-FINDSPS  MVC      0(1,9),=X'00'
-         MVI      PARSEADO,C'S'
-         MVC      LINEA,ANTES
-         BAL      13,WTOROT
-         BAL      13,AMAYUS
-         MVC      LINEA,DESPUES
-         BAL      13,WTOROT
+FINDSPS  MVI      0(9),X'00'
+         CLC      0(2,7),=C' ALL'
+         BE       PARESALL
+         MVI      ESALL,C'N'
+         B        FINPARSE
+PARESALL MVI      ESALL,C'S'
+FINPARSE MVI      PARSEADO,C'S'
          B        VALIDO
 
-* Rutina que muestra el texto *
-MOSTRAR  LA       7,TEXTOIN
-MOSTLOOP MVC      LINEA(1),=C' '
-         MVC      LINEA+1(79),LINEA
-         LA       9,LINEA
-         LA       8,80
-MOSTLNEA MVC      0(1,9),0(7)
-         CLC      0(1,7),=X'00'
-         BE       MOSTSAL
-         LA       7,1(7)
-         LA       9,1(9)
-         BCT      8,MOSTLNEA
-         BAL      13,WTOROT
-         B        MOSTLOOP
-MOSTSAL  BAL      13,WTOROT
-         BR       12
 
 * Rutina que convierte DESPUES a mayuscula *
 AMAYUS   LA       7,DESPUES
@@ -152,21 +136,84 @@ AMAYLOOP CLI      0(7),X'81'
          STC      10,0(7)
 AMAYSGTE LA       7,1(7)
          BCT      8,AMAYLOOP
-         BR       13
-
-
-* Rutina que ejecuta el comando *
-EJECUTAR LA       7,TEXTOIN
-         LA       9,DESPUES
-
          BR       12
 
 
+* Rutina que ejecuta el comando: reemplaza las ocurrencias de ANTES *
+* encontradas en el texto inicial por DESPUES en el texto final *
+EJECUTAR MVC      LINEA,ANTES
+         BAL      11,IMPRIMIR
+         MVC      LINEA,DESPUES
+         BAL      11,IMPRIMIR
+         LA       7,TEXTOIN
+         LA       9,ANTES
+         LA       8,TEXTOOUT
+NXTLOOP  CLC      0(1,7),0(9)
+         BE       NXTENC    * Empieza como la palabra que busco
+NXTCOPY  MVC      0(1,8),0(7)
+         CLI      0(7),X'00'
+         BE       NXTNFND
+         LA       7,1(7)
+         LA       8,1(8)
+         B        NXTLOOP
+NXTENC   LA       6,0(7)    * Guardo el estado antes de seguir
+NXTELOOP LA       7,1(7)
+         LA       9,1(9)
+         CLI      0(9),X'00'
+         BE       NXTCNG
+         CLC      0(1,7),0(9)
+         BE       NXTELOOP
+         LA       7,0(6)    * No es la palabra que necesito
+         B        NXTCOPY
+NXTCNG   LA       6,DESPUES
+NXTCLOOP CLI      0(6),X'00'
+         BE       NXTSTOP
+         MVC      0(1,8),0(6)
+         LA       8,1(8)
+         LA       6,1(6)
+         B        NXTCLOOP
+NXTSTOP  CLI      ESALL,C'S'
+         BE       NXTLOOP  * Si la opcion es all, sigo recorriendo
+NXTCOMPL MVC      0(1,8),0(7)
+         CLI      0(8),X'00'
+         BE       NXTMOSTR
+         LA       7,1(7)
+         LA       8,1(8)
+         B        NXTCOMPL
+NXTNFND  CLI      ESALL,C'S'
+         BNE      NXTMSG
+NXTMOSTR BAL      10,MOSTRAR
+         MVC      TEXTOIN,TEXTOOUT
+         BAL      10,MOSTRAR
+         B        NXTEXIT
+NXTMSG   MVC      LINEA,MSGNONXT
+         BAL      11,IMPRIMIR
+NXTEXIT  BR       12
+
+
+* Rutina que muestra el texto *
+MOSTRAR  LA       7,TEXTOIN
+MOSTLOOP MVC      LINEA(1),=C' '
+         MVC      LINEA+1(79),LINEA
+         LA       9,LINEA
+         LA       8,80
+MOSTLNEA MVC      0(1,9),0(7)
+         CLC      0(1,7),=X'00'
+         BE       MOSTSAL
+         LA       7,1(7)
+         LA       9,1(9)
+         BCT      8,MOSTLNEA
+         BAL      11,IMPRIMIR
+         B        MOSTLOOP
+MOSTSAL  BAL      11,IMPRIMIR
+         BR       10
+
+
 * Rutina que muestra una linea en pantalla *
-WTOROT   MVC      SALIDA,ESPACIOS
+IMPRIMIR MVC      SALIDA,ESPACIOS
          MVC      SALIDA,LINEA
          WTO      MF=(E,WTOBLOCK)
-         BR       13
+         BR       11
 
 
 
@@ -177,11 +224,13 @@ RESTO    DS       59C
 
 PARSEADO DS       C
 ESVALIDO DS       C
+ESALL    DC       C'N'
 
 LINEA    DS       CL80    * Linea de texto
 ESPACIOS DS       CL80' '
 MSGINVAL DC       C'Comando invalido',X'00'
 MSGSALID DC       C'Muchas gracias, vuelva pronto',X'00'
+MSGNONXT DC       C'No hay mas ocurrencias',X'00'
 
 TEXTOIN  DS       60CL80
 TEXTOOUT DS       60CL80
