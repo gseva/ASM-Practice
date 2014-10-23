@@ -114,7 +114,7 @@ LOOPDSPS CLI      0(7),X'7D'
          BCT      8,LOOPDSPS
          B        INVAL
 FINDSPS  MVI      0(9),X'00'
-         CLC      0(2,7),=C' ALL'
+         CLC      1(2,7),=C' ALL'
          BE       PARESALL
          MVI      ESALL,C'N'
          B        FINPARSE
@@ -141,11 +141,7 @@ AMAYSGTE LA       7,1(7)
 
 * Rutina que ejecuta el comando: reemplaza las ocurrencias de ANTES *
 * encontradas en el texto inicial por DESPUES en el texto final *
-EJECUTAR MVC      LINEA,ANTES
-         BAL      11,IMPRIMIR
-         MVC      LINEA,DESPUES
-         BAL      11,IMPRIMIR
-         LA       7,TEXTOIN
+EJECUTAR LA       7,TEXTOIN
          LA       9,ANTES
          LA       8,TEXTOOUT
 NXTLOOP  CLC      0(1,7),0(9)
@@ -156,23 +152,25 @@ NXTCOPY  MVC      0(1,8),0(7)
          LA       7,1(7)
          LA       8,1(8)
          B        NXTLOOP
-NXTENC   LA       6,0(7)    * Guardo el estado antes de seguir
+NXTENC   LR       6,7       * Guardo el estado antes de seguir
 NXTELOOP LA       7,1(7)
          LA       9,1(9)
          CLI      0(9),X'00'
          BE       NXTCNG
          CLC      0(1,7),0(9)
          BE       NXTELOOP
-         LA       7,0(6)    * No es la palabra que necesito
+         LR       7,6       * No es la palabra que necesito
+         LA       9,ANTES
          B        NXTCOPY
-NXTCNG   LA       6,DESPUES
+NXTCNG   LA       6,DESPUES * Cambio a partir de aca por DESPUES
 NXTCLOOP CLI      0(6),X'00'
          BE       NXTSTOP
          MVC      0(1,8),0(6)
          LA       8,1(8)
          LA       6,1(6)
          B        NXTCLOOP
-NXTSTOP  CLI      ESALL,C'S'
+NXTSTOP  LA       9,ANTES
+         CLI      ESALL,C'S'
          BE       NXTLOOP  * Si la opcion es all, sigo recorriendo
 NXTCOMPL MVC      0(1,8),0(7)
          CLI      0(8),X'00'
@@ -183,8 +181,16 @@ NXTCOMPL MVC      0(1,8),0(7)
 NXTNFND  CLI      ESALL,C'S'
          BNE      NXTMSG
 NXTMOSTR BAL      10,MOSTRAR
-         MVC      TEXTOIN,TEXTOOUT
-         BAL      10,MOSTRAR
+NXTINOUT LA       7,TEXTOIN
+         LA       8,TEXTOOUT
+NXTILOOP MVC      0(1,7),0(8)
+         CLI      0(7),X'00'
+         BE       NXTMSOUT
+         LA       7,1(7)
+         LA       8,1(8)
+         B        NXTILOOP
+* MVC      TEXTOIN,TEXTOOUT
+NXTMSOUT BAL      10,MOSTRAR
          B        NXTEXIT
 NXTMSG   MVC      LINEA,MSGNONXT
          BAL      11,IMPRIMIR
@@ -210,8 +216,7 @@ MOSTSAL  BAL      11,IMPRIMIR
 
 
 * Rutina que muestra una linea en pantalla *
-IMPRIMIR MVC      SALIDA,ESPACIOS
-         MVC      SALIDA,LINEA
+IMPRIMIR MVC      SALIDA,LINEA
          WTO      MF=(E,WTOBLOCK)
          BR       11
 
@@ -227,7 +232,6 @@ ESVALIDO DS       C
 ESALL    DC       C'N'
 
 LINEA    DS       CL80    * Linea de texto
-ESPACIOS DS       CL80' '
 MSGINVAL DC       C'Comando invalido',X'00'
 MSGSALID DC       C'Muchas gracias, vuelva pronto',X'00'
 MSGNONXT DC       C'No hay mas ocurrencias',X'00'
