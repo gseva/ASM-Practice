@@ -41,6 +41,7 @@ ENTRADA  MVC      COMANDO(1),=C' '   * Limpio el comando
          BE       ERROR
          BAL      12,AMAYUS
          BAL      12,EJECUTAR
+         MVI      ESALL,C'N'
          B        ENTRADA
 
 ERROR    MVC      LINEA,MSGINVAL
@@ -180,7 +181,9 @@ NXTCOMPL MVC      0(1,8),0(7)
          B        NXTCOMPL
 NXTNFND  CLI      ESALL,C'S'
          BNE      NXTMSG
-NXTMOSTR BAL      10,MOSTRAR
+NXTMOSTR MVC      LINEA,MSGANTES
+         BAL      11,IMPRIMIR
+         BAL      10,MOSTRAR
 NXTINOUT LA       7,TEXTOIN
          LA       8,TEXTOOUT
 NXTILOOP MVC      0(1,7),0(8)
@@ -189,8 +192,9 @@ NXTILOOP MVC      0(1,7),0(8)
          LA       7,1(7)
          LA       8,1(8)
          B        NXTILOOP
-* MVC      TEXTOIN,TEXTOOUT
-NXTMSOUT BAL      10,MOSTRAR
+NXTMSOUT MVC      LINEA,MSGDSPS
+         BAL      11,IMPRIMIR
+         BAL      10,MOSTRAR
          B        NXTEXIT
 NXTMSG   MVC      LINEA,MSGNONXT
          BAL      11,IMPRIMIR
@@ -230,11 +234,14 @@ RESTO    DS       59C
 PARSEADO DS       C
 ESVALIDO DS       C
 ESALL    DC       C'N'
+HAYCAMB  DC       C'N'
 
 LINEA    DS       CL80    * Linea de texto
 MSGINVAL DC       C'Comando invalido',X'00'
 MSGSALID DC       C'Muchas gracias, vuelva pronto',X'00'
 MSGNONXT DC       C'No hay mas ocurrencias',X'00'
+MSGANTES DC       C'---ANTES---',X'00'
+MSGDSPS  DC       C'---DESPUES---',X'00'
 
 TEXTOIN  DS       60CL80
 TEXTOOUT DS       60CL80
@@ -246,7 +253,7 @@ CHAR     DS       C
 
 * Archivo de entrada *
 ARCHIN   DCB      DSNAME=ARCHIVO,LRECL=80,RECFM=FT,MACRF=GM,EODAD=EOF
-ARCHIVO  DC       C'saraza',X'00'
+ARCHIVO  DC       C'lorem.txt',X'00'
 
 WAITECB  DS       F
 WTOBLOCK DC       H'84'
